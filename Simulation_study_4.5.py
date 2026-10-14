@@ -66,15 +66,16 @@ for year in range(nrYears):
 
 
 congestion = totalCargo > 650000
+pCongestion = np.mean(congestion)
 halfWidth = 1.96 * np.std(congestion) / np.sqrt(n)
 dataCongestionDays = np.sum(dailyCargo > 650000) / (len(dailyCargo) / 365)
 
-print('Ships per day mean, std:', round(np.mean(totalShips), 2), round(np.std(totalShips), 2))
-print('Cargo per day mean, std:', round(np.mean(totalCargo)), round(np.std(totalCargo)))
-print('Quantile 95%, 99%, 99.9%:', round(np.quantile(totalCargo, 0.95)), round(np.quantile(totalCargo, 0.99)), round(np.quantile(totalCargo, 0.999)))
-print('P(S > 650000) and 95% CI:', round(np.mean(congestion), 4), round(np.mean(congestion) - halfWidth, 4), round(np.mean(congestion) + halfWidth, 4))
-print('Congestion days per year mean, std, min, max:', round(np.mean(congestionDays), 1), round(np.std(congestionDays), 1), np.min(congestionDays), np.max(congestionDays))
-print('Congestion days per year in the data:', round(dataCongestionDays, 1))
+print(f'Ships per day mean: {round(np.mean(totalShips), 2)}, std: {round(np.std(totalShips), 2)}')
+print(f'Cargo per day mean: {round(np.mean(totalCargo))}, std: {round(np.std(totalCargo))}')
+print(f'95% quantile: {round(np.quantile(totalCargo, 0.95))}, 99%: {round(np.quantile(totalCargo, 0.99))}, 99.9%: {round(np.quantile(totalCargo, 0.999))}')
+print(f'P(S > 650000) = {round(pCongestion, 4)}, 95% CI: [{round(pCongestion - halfWidth, 4)}, {round(pCongestion + halfWidth, 4)}]')
+print(f'Congestion days per year mean: {round(np.mean(congestionDays), 1)}, std: {round(np.std(congestionDays), 1)}, min: {np.min(congestionDays)}, max: {np.max(congestionDays)}')
+print(f'Congestion days per year in the data: {round(dataCongestionDays, 1)}')
 
 
 for vesselType in types:

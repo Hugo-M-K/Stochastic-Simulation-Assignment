@@ -3,6 +3,7 @@ from scipy import stats
 import numpy as np
 import matplotlib.pyplot as plt
 
+np.random.seed(1)
 
 
 data = pd.read_excel('rotterdam_dataset_02.xlsx')
@@ -19,7 +20,7 @@ fitLognormDist = {}
 
 for vesselType in ['Container', 'Tanker', 'Bulk']:
     ships = data[data['Vessel_Type'] == vesselType]
-    cargo = ships['Cargo_tons'].values
+    cargo = ships['Cargo_tons']
 
     arrivalTimes = (ships['Arrival_Date'] - ships['Arrival_Date'].min()).dt.total_seconds() / 86400
     interArrivalTimes = np.diff(arrivalTimes)
@@ -32,9 +33,7 @@ for vesselType in ['Container', 'Tanker', 'Bulk']:
     meanCargo[vesselType] = M1
     fitLognormDist[vesselType] = stats.lognorm(np.sqrt(s2), scale=np.exp(m))
 
-    print(vesselType)
-    print('  lambda:', round(lam[vesselType], 4))
-    print('  lognormal mu and sigma:', round(m, 4), round(np.sqrt(s2), 4))
+    print(f'{vesselType} lambda: {round(lam[vesselType], 4)}, mu: {round(m, 4)}, sigma: {round(np.sqrt(s2), 4)}')
 
 
 meanS = 0
@@ -45,9 +44,11 @@ for vesselType in ['Container', 'Tanker', 'Bulk']:
     varArrivals += lam[vesselType] * fitLognormDist[vesselType].mean()**2
     varCargo += lam[vesselType] * fitLognormDist[vesselType].var()
 
-print('mean and std of daily cargo:', round(meanS), round(np.sqrt(varArrivals + varCargo)))
-print('  part of the variance from the number of ships:', round(varArrivals / (varArrivals + varCargo), 3))
-print('  part of the variance from the cargo per ship:', round(varCargo / (varArrivals + varCargo), 3))
+stdS = np.sqrt(varArrivals + varCargo)
+shareArrivals = varArrivals / (varArrivals + varCargo)
+shareCargo = varCargo / (varArrivals + varCargo)
+print(f'Theory mean: {round(meanS)}, std: {round(stdS)}')
+print(f'Share of the variance from arrivals: {round(shareArrivals, 3)}, from cargo: {round(shareCargo, 3)}')
 
 
 def simPoissonProcess(lam, t, cargoDist):
@@ -74,11 +75,10 @@ for i in range(nrRuns):
         simAverage[i] += nT * meanCargo[vesselType]
         simCompound[i] += totalCargo
 
-print('Mean, std and P(S > 650000) of daily cargo')
-print('  data:            ', round(np.mean(dailyCargo)), round(np.std(dailyCargo)), round(np.mean(dailyCargo > 650000), 4))
-print('  model A normal:  ', round(np.mean(simNormal)), round(np.std(simNormal)), round(np.mean(simNormal > 650000), 4))
-print('  model B average: ', round(np.mean(simAverage)), round(np.std(simAverage)), round(np.mean(simAverage > 650000), 4))
-print('  model C compound:', round(np.mean(simCompound)), round(np.std(simCompound)), round(np.mean(simCompound > 650000), 4))
+print(f'Data mean: {round(np.mean(dailyCargo))}, std: {round(np.std(dailyCargo))}, P(S > 650000) = {round(np.mean(dailyCargo > 650000), 4)}')
+print(f'Model A mean: {round(np.mean(simNormal))}, std: {round(np.std(simNormal))}, P(S > 650000) = {round(np.mean(simNormal > 650000), 4)}')
+print(f'Model B mean: {round(np.mean(simAverage))}, std: {round(np.std(simAverage))}, P(S > 650000) = {round(np.mean(simAverage > 650000), 4)}')
+print(f'Model C mean: {round(np.mean(simCompound))}, std: {round(np.std(simCompound))}, P(S > 650000) = {round(np.mean(simCompound > 650000), 4)}')
 
 
 bins = np.arange(0, 1100000, 25000)
@@ -93,30 +93,30 @@ plt.xlabel('Cargo (tons per day)')
 plt.legend(['Model A', 'Capacity', 'Data'])
 
 plt.figure()
-plt.hist(dailyCargo, bins=bins, rwidth=0.8, density=True, alpha=0.5)
-plt.hist(simAverage, bins=bins, rwidth=0.8, density=True, alpha=0.5)
+plt.hist(dailyCargo, bins=bins, rwidth=0.8, density=True)
+[probs, edges] = np.histogram(simAverage, bins=bins, density=True)
+plt.plot(edges[0:len(edges)-1] + 12500, probs, 'ro')
 plt.axvline(x=650000, color='black')
 plt.title('Model B: Poisson arrivals, average cargo')
 plt.xlabel('Cargo (tons per day)')
-plt.legend(['Capacity', 'Data', 'Model B'])
+plt.legend(['Model B', 'Capacity', 'Data'])
 
 plt.figure()
-plt.hist(dailyCargo, bins=bins, rwidth=0.8, density=True, alpha=0.5)
-plt.hist(simCompound, bins=bins, rwidth=0.8, density=True, alpha=0.5)
+plt.hist(dailyCargo, bins=bins, rwidth=0.8, density=True)
+[probs, edges] = np.histogram(simCompound, bins=bins, density=True)
+plt.plot(edges[0:len(edges)-1] + 12500, probs, 'ro')
 plt.axvline(x=650000, color='black')
 plt.title('Model C: compound Poisson')
 plt.xlabel('Cargo (tons per day)')
-plt.legend(['Capacity', 'Data', 'Model C'])
+plt.legend(['Model C', 'Capacity', 'Data'])
 
 plt.figure()
-plt.step(np.sort(dailyCargo), np.arange(1, nrDays+1) / nrDays, color='blue', where='post')
-plt.plot(xs, fitNormDist.cdf(xs), color='orange')
-plt.step(np.sort(simAverage), np.arange(1, nrRuns+1) / nrRuns, color='g', where='post')
-plt.step(np.sort(simCompound), np.arange(1, nrRuns+1) / nrRuns, color='red', where='post')
+plt.step(np.sort(dailyCargo), np.arange(1, nrDays+1) / nrDays, where='post')
+plt.plot(xs, fitNormDist.cdf(xs))
+plt.step(np.sort(simAverage), np.arange(1, nrRuns+1) / nrRuns, where='post')
+plt.step(np.sort(simCompound), np.arange(1, nrRuns+1) / nrRuns, where='post')
 plt.axvline(x=650000, color='black')
-plt.xlim(500000, 1000000)
-plt.ylim(0.8, 1.01)
-plt.title('Upper tail of the daily cargo')
+plt.title('Daily cargo: all models')
 plt.xlabel('Cargo (tons per day)')
 plt.legend(['Data', 'Model A', 'Model B', 'Model C', 'Capacity'])
 
